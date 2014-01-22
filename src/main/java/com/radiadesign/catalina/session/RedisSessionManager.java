@@ -1,30 +1,17 @@
 package com.radiadesign.catalina.session;
 
-import org.apache.catalina.Globals;
-import org.apache.catalina.Lifecycle;
-import org.apache.catalina.LifecycleException;
-import org.apache.catalina.LifecycleListener;
-import org.apache.catalina.util.LifecycleSupport;
-import org.apache.catalina.LifecycleState;
-import org.apache.catalina.Loader;
-import org.apache.catalina.Valve;
-import org.apache.catalina.Session;
+import org.apache.catalina.*;
 import org.apache.catalina.session.ManagerBase;
-
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Protocol;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
+import org.apache.catalina.util.LifecycleSupport;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import redis.clients.jedis.*;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class RedisSessionManager extends ManagerBase implements Lifecycle {
@@ -38,7 +25,9 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle {
   protected int database = 0;
   protected String password = null;
   protected int timeout = Protocol.DEFAULT_TIMEOUT;
-  protected JedisPool connectionPool;
+  protected JedisSentinelPool connectionPool;
+  protected String master;
+  protected String sentinels;
 
   protected RedisSessionHandlerValve handlerValve;
   protected ThreadLocal<RedisSession> currentSession = new ThreadLocal<>();
@@ -93,6 +82,28 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle {
 
   public void setPassword(String password) {
     this.password = password;
+  }
+
+
+  public String getSentinels() {
+    return sentinels;
+  }
+
+  public void setSentinels(String sentinels) {
+    this.sentinels = sentinels;
+  }
+
+  public Set<String> getSentinelSet(){
+    String[] sentinels = getSentinels().split(",");
+    return new HashSet<String>(Arrays.asList(sentinels));
+  }
+
+  public String getMaster() {
+    return master;
+  }
+
+  public void setMaster(String master) {
+    this.master = master;
   }
 
   public void setSerializationStrategyClass(String strategy) {
@@ -505,7 +516,7 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle {
   private void initializeDatabaseConnection() throws LifecycleException {
     try {
       // TODO: Allow configuration of pool (such as size...)
-      connectionPool = new JedisPool(new JedisPoolConfig(), getHost(), getPort(), getTimeout(), getPassword());
+      connectionPool = new JedisSentinelPool(getMaster(), getSentinelSet(), new JedisPoolConfig(), getTimeout(), getPassword());
     } catch (Exception e) {
       e.printStackTrace();
       throw new LifecycleException("Error Connecting to Redis", e);
