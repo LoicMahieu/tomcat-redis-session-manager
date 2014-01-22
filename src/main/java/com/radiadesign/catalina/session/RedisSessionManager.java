@@ -6,6 +6,7 @@ import org.apache.catalina.util.LifecycleSupport;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import redis.clients.jedis.*;
+import redis.clients.util.Pool;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -25,9 +26,9 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle {
   protected int database = 0;
   protected String password = null;
   protected int timeout = Protocol.DEFAULT_TIMEOUT;
-  protected JedisSentinelPool connectionPool;
-  protected String master;
-  protected String sentinels;
+  protected Pool<Jedis> connectionPool;
+  protected String master = null;
+  protected String sentinels = null;
 
   protected RedisSessionHandlerValve handlerValve;
   protected ThreadLocal<RedisSession> currentSession = new ThreadLocal<>();
@@ -515,8 +516,14 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle {
 
   private void initializeDatabaseConnection() throws LifecycleException {
     try {
-      // TODO: Allow configuration of pool (such as size...)
-      connectionPool = new JedisSentinelPool(getMaster(), getSentinelSet(), new JedisPoolConfig(), getTimeout(), getPassword());
+      if (getMaster() != null && getSentinels() != null)     {
+        connectionPool = new JedisSentinelPool(getMaster(), getSentinelSet(), new JedisPoolConfig(), getTimeout(), getPassword());
+      } else if (getMaster() != null || getSentinels() != null)  {
+        log.warn("To use redis sentinel, both the master and sentinel properties must be set.");
+      } else {
+        connectionPool = new JedisPool(new JedisPoolConfig(), getHost(), getPort(), getTimeout(), getPassword());
+      }
+
     } catch (Exception e) {
       e.printStackTrace();
       throw new LifecycleException("Error Connecting to Redis", e);
