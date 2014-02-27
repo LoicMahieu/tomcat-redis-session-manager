@@ -168,7 +168,10 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle, Redis
 
     initializeDatabaseConnection();
     setDistributable( true );
-    managerId = generateSessionId();
+
+    managerId = 'tomcat-redis-session-manager';
+
+    // managerId = generateSessionId();
   }
 
   /**
