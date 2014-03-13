@@ -373,7 +373,11 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle, Redis
     try
     {
       // TODO: Allow configuration of pool (such as size...)
-      connectionPool = new JedisPool( new JedisPoolConfig(), getHost(), getPort(), getTimeout(), getPassword() );
+      JedisPoolConfig config = new JedisPoolConfig();
+
+      config.setTestOnBorrow(true);
+
+      connectionPool = new JedisPool( config, getHost(), getPort(), getTimeout(), getPassword() );
     } catch ( Exception e )
     {
       log.error( e.getMessage(), e );
