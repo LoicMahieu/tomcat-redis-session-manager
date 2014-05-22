@@ -33,6 +33,7 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle, Redis
   protected int database = 0;
   protected String password = null;
   protected int timeout = Protocol.DEFAULT_TIMEOUT;
+  protected int sessionExpire = 60 * 60 * 24; // 1 day
   protected JedisPool connectionPool;
   protected String managerId;
   protected Serializer serializer;
@@ -93,6 +94,16 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle, Redis
   public void setPassword( String password )
   {
     this.password = password;
+  }
+
+  public int getSessionExpire()
+  {
+    return sessionExpire;
+  }
+
+  public void setSessionExpire( int sessionExpire )
+  {
+    this.sessionExpire = sessionExpire;
   }
 
   public void setSerializationStrategyClass( String strategy )
@@ -281,7 +292,9 @@ public class RedisSessionManager extends ManagerBase implements Lifecycle, Redis
         @Override
         public void execute( Jedis jedis ) throws Exception
         {
-          jedis.set( getSessionKey( redisSession.getId() ), serializer.writeSession( redisSession ) );
+          byte[] sessKey = getSessionKey( redisSession.getId() );
+          jedis.set( sessKey, serializer.writeSession( redisSession ) );
+          jedis.expire( sessKey, getSessionExpire() );
           redisSession.resetDirtyTracking();
         }
 
